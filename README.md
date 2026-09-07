@@ -35,6 +35,47 @@ metrics look artificially perfect.
 
 ## Quickstart
 
+### Windows (PowerShell)
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+
+# generates data\sample_issues_{train,test}.csv
+python data\generate_sample_data.py
+
+# trains models\baseline_classifier.joblib
+python -m src.train
+
+# run tests
+pytest -v
+
+# run the API
+uvicorn src.api:app --reload --port 8000
+```
+
+If `Activate.ps1` is blocked by PowerShell's execution policy, either run
+PowerShell as Administrator once and do
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or activate with
+`.venv\Scripts\activate.bat` from `cmd.exe` instead.
+
+Then, in a second PowerShell window (the first one is busy running the
+server):
+
+```powershell
+curl.exe -X POST http://localhost:8000/predict `
+  -H "Content-Type: application/json" `
+  -d '{\"title\": \"App crashes on startup\", \"body\": \"Stack trace attached\"}'
+```
+
+(Use `curl.exe`, not plain `curl` — PowerShell aliases `curl` to
+`Invoke-WebRequest`, which takes different flags. Easier alternative: open
+`http://localhost:8000/docs` in your browser for an interactive form to
+test `/predict` with, no curl needed at all.)
+
+### macOS / Linux / WSL / Git Bash
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
@@ -63,16 +104,43 @@ curl -X POST http://localhost:8000/predict \
 ## Training on the real dataset
 
 This sandbox's network can't reach the file host, so run this part on a
-machine with normal internet access:
+machine with normal internet access.
+
+**Windows** — use the Python downloader (no bash/curl/tar needed):
+
+```powershell
+python data\download_dataset.py
+python -m src.train `
+  --train-csv data\nlbse23-issue-classification-train.csv `
+  --test-csv data\nlbse23-issue-classification-test.csv
+```
+
+**macOS / Linux / WSL** — either the same Python script, or the bash version:
 
 ```bash
-bash data/download_dataset.sh
+python data/download_dataset.py
+# or: bash data/download_dataset.sh
+
 python -m src.train \
   --train-csv data/nlbse23-issue-classification-train.csv \
   --test-csv data/nlbse23-issue-classification-test.csv
 ```
 
+Heads up: the train file alone is a sizeable download (1.2M rows) and will
+take a while depending on your connection — let it run.
+
 ## Docker
+
+Requires Docker Desktop installed and running on Windows.
+
+**Windows (PowerShell):**
+
+```powershell
+docker build -t issue-triage-api .
+docker run -p 8000:8000 -v ${PWD}\models:/app/models issue-triage-api
+```
+
+**macOS / Linux:**
 
 ```bash
 docker build -t issue-triage-api .
@@ -83,7 +151,7 @@ docker run -p 8000:8000 -v $(pwd)/models:/app/models issue-triage-api
 
 ```
 src/            data pipeline, training, model loading, FastAPI app, SQL logging
-data/           dataset download script + synthetic sample-data generator
+data/           dataset download scripts (Windows-friendly .py + bash .sh) + synthetic sample-data generator
 models/         trained model artifact + metrics (gitignored, generated locally)
 tests/          pytest suite (pipeline, model, API)
 docs/           AWS runbook, resume pitch, transformer upgrade plan
