@@ -1,0 +1,15 @@
+services:
+  issue-triage-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+    environment:
+      - DATABASE_URL=sqlite:////app/models/predictions.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
