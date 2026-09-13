@@ -41,10 +41,14 @@ def load_csv(path: str | Path) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
             f"Dataset file not found: {path}. Run data/generate_sample_data.py for a local "
-            f"dev dataset, or data/download_dataset.sh (on a machine with network access) "
+            f"dev dataset, or data/download_dataset.py (on a machine with network access) "
             f"for the real NLBSE'23 data."
         )
     df = pd.read_csv(path)
+
+    if "label" not in df.columns and "labels" in df.columns:
+        df = df.rename(columns={"labels": "label"})
+
     missing = {"label", "title", "body"} - set(df.columns)
     if missing:
         raise ValueError(f"Dataset {path} is missing required columns: {missing}")

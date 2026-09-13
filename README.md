@@ -14,24 +14,22 @@ Dataset: [NLBSE'23 Issue Report Classification benchmark](https://github.com/nlb
 | Piece | Status |
 |---|---|
 | Dataset pipeline | Done ([src/data_pipeline.py](src/data_pipeline.py)) |
-| Baseline classifier (TF-IDF + linear SVM) | Done ([src/train.py](src/train.py)) |
+| Baseline classifier (hashing vectorizer + linear SVM) | Done ([src/train.py](src/train.py)) |
 | FastAPI service | Done ([src/api.py](src/api.py)) |
 | SQL prediction logging | Done ([src/db.py](src/db.py)) |
 | Docker | Done ([Dockerfile](Dockerfile)) — not build-tested in this sandbox (no Docker daemon here); verify locally/in CI |
 | CI (GitHub Actions) | Done ([.github/workflows/ci.yml](.github/workflows/ci.yml)) |
 | AWS deploy runbook | Done ([docs/aws_deploy_runbook.md](docs/aws_deploy_runbook.md)) |
 | Resume bullets + pitch | Done ([docs/resume_pitch.md](docs/resume_pitch.md)) |
-| Real-scale training on the full dataset | **Not done** — needs a machine with unrestricted network access, see below |
-| DistilBERT transformer upgrade | **Not done** — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md) |
+| Real-scale training on the full dataset | **Done** — 81.8% accuracy on the full 142,320-row test set, see [docs/resume_pitch.md](docs/resume_pitch.md) |
+| DistilBERT transformer upgrade | **Not done** — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md), motivated by the class-imbalance weakness found in the real-data results |
 
-**Important:** everything above was built and tested against a small
-synthetic sample dataset (`data/generate_sample_data.py`) with the same
-schema/labels as the real data, because the real dataset is hosted on a
-host this build environment's network can't reach. The pipeline is proven
-correct end-to-end, but **retrain on the real data** (see below) before
-using the metrics or the model in an actual demo or interview — see
-[docs/resume_pitch.md](docs/resume_pitch.md) for details on why the sample
-metrics look artificially perfect.
+**Note:** the pipeline was first built and tested against a small synthetic
+sample dataset (`data/generate_sample_data.py`) since the real dataset's
+host wasn't reachable from the original build sandbox — it's still there
+for quick local iteration. The model has since been retrained on the real
+NLBSE'23 data; see [docs/resume_pitch.md](docs/resume_pitch.md) for the
+real metrics and what they mean before quoting numbers in an interview.
 
 ## Quickstart
 
