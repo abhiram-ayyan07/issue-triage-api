@@ -22,7 +22,7 @@ Dataset: [NLBSE'23 Issue Report Classification benchmark](https://github.com/nlb
 | AWS deploy runbook | Done ([docs/aws_deploy_runbook.md](docs/aws_deploy_runbook.md)) |
 | Resume bullets + pitch | Done ([docs/resume_pitch.md](docs/resume_pitch.md)) |
 | Real-scale training on the full dataset | **Done** — 81.8% accuracy on the full 142,320-row test set, see [docs/resume_pitch.md](docs/resume_pitch.md) |
-| DistilBERT transformer upgrade | **Not done** — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md), motivated by the class-imbalance weakness found in the real-data results |
+| DistilBERT transformer upgrade | **Code done, not yet trained on real data** ([src/train_transformer.py](src/train_transformer.py), needs a GPU — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md)) |
 
 **Note:** the pipeline was first built and tested against a small synthetic
 sample dataset (`data/generate_sample_data.py`) since the real dataset's
@@ -126,6 +126,26 @@ python -m src.train \
 
 Heads up: the train file alone is a sizeable download (1.2M rows) and will
 take a while depending on your connection — let it run.
+
+## DistilBERT upgrade (optional, needs a GPU)
+
+The baseline above is fast but weak on the rare classes (`question`,
+`documentation`). `src/train_transformer.py` fine-tunes a DistilBERT model
+with class-weighted loss to address that — see
+[docs/upgrade_transformer.md](docs/upgrade_transformer.md) for the full
+story. Quick version:
+
+```powershell
+pip install -r requirements-transformer.txt
+python -c "import torch; print(torch.cuda.is_available())"   # must print True
+
+python -m src.train_transformer --train-csv data\nlbse23-issue-classification-train.csv --test-csv data\nlbse23-issue-classification-test.csv --sample-size 20000 --epochs 1
+```
+
+Once that sanity check looks reasonable, drop `--sample-size` for the full
+run. The API in `src/api.py` doesn't need any changes — `src/model.py`
+automatically uses the DistilBERT model instead of the baseline as soon as
+`models/distilbert_classifier/` exists.
 
 ## Docker
 

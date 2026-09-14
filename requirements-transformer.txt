@@ -1,0 +1,15 @@
+# Extra dependencies for the DistilBERT upgrade path (src/train_transformer.py).
+# Kept separate from requirements.txt because these are large (torch alone is a
+# multi-GB download with GPU support) and only needed if you're training or
+# serving the transformer model, not for the baseline API/Docker image.
+#
+# Install with: pip install -r requirements-transformer.txt
+# Then check GPU support with: python -c "import torch; print(torch.cuda.is_available())"
+# If that prints False on a machine with an NVIDIA GPU, your torch install
+# likely doesn't have CUDA support -- see
+# https://pytorch.org/get-started/locally/ for the right install command for
+# your CUDA version.
+
+torch>=2.2.0
+transformers>=4.41.0
+accelerate>=1.1.0
