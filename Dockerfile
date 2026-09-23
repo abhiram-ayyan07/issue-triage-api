@@ -7,8 +7,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-transformer.txt ./
+RUN pip install --no-cache-dir -r requirements.txt \
+    # CPU-only torch: this container has no GPU, and the full CUDA wheel is a
+    # multi-GB download it doesn't need. Installing it explicitly first means
+    # the requirements-transformer.txt install below sees the version
+    # constraint already satisfied and won't pull the (much bigger) default.
+    && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch \
+    && pip install --no-cache-dir -r requirements-transformer.txt
 
 COPY src/ src/
 COPY data/ data/

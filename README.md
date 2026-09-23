@@ -21,8 +21,8 @@ Dataset: [NLBSE'23 Issue Report Classification benchmark](https://github.com/nlb
 | CI (GitHub Actions) | Done ([.github/workflows/ci.yml](.github/workflows/ci.yml)) |
 | AWS deploy runbook | Done ([docs/aws_deploy_runbook.md](docs/aws_deploy_runbook.md)) |
 | Resume bullets + pitch | Done ([docs/resume_pitch.md](docs/resume_pitch.md)) |
-| Real-scale training on the full dataset | **Done** — 81.8% accuracy on the full 142,320-row test set, see [docs/resume_pitch.md](docs/resume_pitch.md) |
-| DistilBERT transformer upgrade | **Code done, not yet trained on real data** ([src/train_transformer.py](src/train_transformer.py), needs a GPU — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md)) |
+| Real-scale training on the full dataset | **Done** — baseline 81.8% accuracy on the full 142,320-row test set, see [docs/resume_pitch.md](docs/resume_pitch.md) |
+| DistilBERT transformer upgrade | **Done** — 85.7% accuracy / 0.75 macro-F1, fine-tuned on a 120K-row subsample ([src/train_transformer.py](src/train_transformer.py) — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md)) |
 
 **Note:** the pipeline was first built and tested against a small synthetic
 sample dataset (`data/generate_sample_data.py`) since the real dataset's
@@ -142,14 +142,24 @@ python -c "import torch; print(torch.cuda.is_available())"   # must print True
 python -m src.train_transformer --train-csv data\nlbse23-issue-classification-train.csv --test-csv data\nlbse23-issue-classification-test.csv --sample-size 20000 --epochs 1
 ```
 
-Once that sanity check looks reasonable, drop `--sample-size` for the full
-run. The API in `src/api.py` doesn't need any changes — `src/model.py`
-automatically uses the DistilBERT model instead of the baseline as soon as
-`models/distilbert_classifier/` exists.
+Once that sanity check looks reasonable, scale up (dropping `--sample-size`
+entirely means the full ~1.08M-row dataset, which can take multiple days on
+a laptop GPU -- a bounded subsample like `--sample-size 120000` is a more
+practical middle ground, see [docs/upgrade_transformer.md](docs/upgrade_transformer.md)
+for real timing). The API in `src/api.py` doesn't need any changes --
+`src/model.py` automatically uses the DistilBERT model instead of the
+baseline as soon as `models/distilbert_classifier/` exists.
 
 ## Docker
 
 Requires Docker Desktop installed and running on Windows.
+
+The image installs both `requirements.txt` and `requirements-transformer.txt`
+(CPU-only torch, since the container has no GPU) so it can serve whichever
+model is present in the mounted `models/` folder -- baseline or the
+fine-tuned DistilBERT one. That makes the first build noticeably bigger and
+slower than a plain scikit-learn image (torch + transformers add a few
+hundred MB and a few extra minutes) -- expected, not a hang.
 
 **Windows (PowerShell):**
 
@@ -164,6 +174,11 @@ docker run -p 8000:8000 -v ${PWD}\models:/app/models issue-triage-api
 docker build -t issue-triage-api .
 docker run -p 8000:8000 -v $(pwd)/models:/app/models issue-triage-api
 ```
+
+The `-v .../models:/app/models` volume mount means whatever's in your local
+`models/` folder (including `distilbert_classifier/` if you've trained it)
+is what the container actually serves, regardless of what got baked into
+the image at build time.
 
 ## Project layout
 

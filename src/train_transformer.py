@@ -43,6 +43,7 @@ from torch.utils.data import Dataset
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    DataCollatorWithPadding,
     Trainer,
     TrainingArguments,
 )
@@ -58,18 +59,30 @@ ID2LABEL = {i: label for label, i in LABEL2ID.items()}
 
 
 class IssueDataset(Dataset):
-    """Wraps tokenized issue text + integer labels for the Trainer API."""
+    """Wraps tokenized issue text + integer labels for the Trainer API.
+
+    Deliberately does NOT pad here. `tokenizer(texts, padding=True, ...)`
+    called once over the *whole* dataset pads every example out to the
+    length of the single longest example in the entire dataset (capped at
+    max_length by truncation) -- on real GitHub issue text, where a lot of
+    bodies are long enough to hit the max_length cap, that means almost
+    every training example ends up padded/truncated to a full max_length
+    sequence, even one-line issue titles. That's wasted compute on every
+    single batch. Instead, this leaves sequences at their natural
+    (truncated) length and pads per-*batch* via a DataCollatorWithPadding
+    in train() below, so a batch of short issues stays short.
+    """
 
     def __init__(self, texts: list[str], labels: list[str], tokenizer, max_length: int):
-        self.encodings = tokenizer(texts, truncation=True, padding=True, max_length=max_length)
+        self.encodings = tokenizer(texts, truncation=True, max_length=max_length)
         self.labels = [LABEL2ID[label] for label in labels]
 
     def __len__(self) -> int:
         return len(self.labels)
 
     def __getitem__(self, idx: int) -> dict:
-        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        item["labels"] = torch.tensor(self.labels[idx])
+        item = {key: val[idx] for key, val in self.encodings.items()}
+        item["labels"] = self.labels[idx]
         return item
 
 
@@ -106,10 +119,19 @@ def train(
     batch_size: int = 16,
     max_length: int = 256,
     lr: float = 2e-5,
+    fp16: bool = False,
 ) -> dict:
     has_gpu = torch.cuda.is_available()
     if has_gpu:
         print(f"Using GPU: {torch.cuda.get_device_name(0)}", flush=True)
+        if fp16:
+            print(
+                "fp16 mixed precision requested. Note: this only reliably speeds things up on "
+                "GPUs with Tensor Cores (RTX/Volta+). On older/consumer GPUs without them (e.g. "
+                "GTX 16-series), fp16 can be a wash or even slightly slower due to cast/loss-"
+                "scaling overhead -- if a run with --fp16 isn't faster than without it, leave it off.",
+                flush=True,
+            )
     else:
         print(
             "WARNING: no CUDA GPU detected. Fine-tuning DistilBERT on CPU is very slow for "
@@ -156,6 +178,7 @@ def train(
     )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     training_args = TrainingArguments(
         output_dir=str(OUTPUT_DIR / "checkpoints"),
@@ -169,7 +192,9 @@ def train(
         load_best_model_at_end=True,
         metric_for_best_model="macro_f1",
         logging_steps=50,
-        fp16=has_gpu,
+        # fp16 is opt-in (--fp16), not automatic just because a GPU exists --
+        # see the note printed above about Tensor-Core-less GPUs.
+        fp16=has_gpu and fp16,
         report_to=[],
     )
 
@@ -178,6 +203,7 @@ def train(
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
+        data_collator=data_collator,
         compute_metrics=compute_metrics,
         class_weights=class_weights_tensor,
     )
@@ -218,6 +244,12 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--max-length", type=int, default=256)
     parser.add_argument("--lr", type=float, default=2e-5)
+    parser.add_argument(
+        "--fp16", action="store_true",
+        help="Enable fp16 mixed precision. Off by default -- only reliably helps on GPUs with "
+        "Tensor Cores (RTX/Volta+); on older GPUs (e.g. GTX 16-series) it can be a wash or "
+        "slightly slower. Try it and compare if you're not sure which camp your GPU is in.",
+    )
     args = parser.parse_args()
     train(
         args.train_csv,
@@ -227,6 +259,7 @@ def main() -> None:
         batch_size=args.batch_size,
         max_length=args.max_length,
         lr=args.lr,
+        fp16=args.fp16,
     )
 
 

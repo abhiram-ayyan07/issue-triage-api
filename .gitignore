@@ -6,8 +6,7 @@ venv/
 data/*.csv
 data/*.tar.gz
 data/raw/
-models/*.joblib
-models/*.db
+models/*
 !models/.gitkeep
 .pytest_cache/
 .ruff_cache/

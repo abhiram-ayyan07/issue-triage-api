@@ -1,0 +1,24 @@
+# Keep the build context small and fast, and avoid baking unnecessary or
+# huge files into the image.
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/
+docs/
+*.md
+
+# The real downloaded dataset is only needed for training, not for serving
+# predictions -- excluding it keeps `docker build` fast.
+data/*.csv
+data/*.tar.gz
+data/raw/
+
+# Runtime state (recreated automatically) and training checkpoints (large,
+# only needed to resume training -- not needed to serve predictions).
+models/*.db
+models/distilbert_classifier/checkpoints/
