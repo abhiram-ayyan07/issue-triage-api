@@ -33,11 +33,28 @@ jobs:
       - name: Run tests
         run: pytest -v
 
+      # docker-build runs in a separate job with its own fresh checkout --
+      # it doesn't see the sample data or model this job just generated, so
+      # hand it the trained model directly rather than re-training inside
+      # the Docker build (which would also need the sample CSVs, and those
+      # are gitignored so they wouldn't be there either).
+      - name: Upload trained baseline model
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-model
+          path: models/baseline_classifier.joblib
+
   docker-build:
     runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download trained baseline model
+        uses: actions/download-artifact@v4
+        with:
+          name: baseline-model
+          path: models/
 
       - name: Build Docker image
         run: docker build -t issue-triage-api:ci .
