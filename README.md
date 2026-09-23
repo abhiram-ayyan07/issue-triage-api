@@ -24,12 +24,6 @@ Dataset: [NLBSE'23 Issue Report Classification benchmark](https://github.com/nlb
 | Real-scale training on the full dataset | **Done** — baseline 81.8% accuracy on the full 142,320-row test set, see [docs/resume_pitch.md](docs/resume_pitch.md) |
 | DistilBERT transformer upgrade | **Done** — 85.7% accuracy / 0.75 macro-F1, fine-tuned on a 120K-row subsample ([src/train_transformer.py](src/train_transformer.py) — see [docs/upgrade_transformer.md](docs/upgrade_transformer.md)) |
 
-**Note:** the pipeline was first built and tested against a small synthetic
-sample dataset (`data/generate_sample_data.py`) since the real dataset's
-host wasn't reachable from the original build sandbox — it's still there
-for quick local iteration. The model has since been retrained on the real
-NLBSE'23 data; see [docs/resume_pitch.md](docs/resume_pitch.md) for the
-real metrics and what they mean before quoting numbers in an interview.
 
 ## Quickstart
 
